@@ -18,10 +18,14 @@ def nnUpsample(I, factor):
 # (a): Fill in the filters to get the data to match
 
 filter0 = np.diag([0, 1, 0])
-filter1 = np.diag([0, 1, 0])
-filter2 = np.diag([0, 1, 0])
-filter3 = np.diag([0, 1, 0])
-filter4 = np.diag([0, 1, 0])
+filter1 = np.ones((3, 3)) 
+filter2 = np.ones((3, 3)) * 1/9
+filter3 = np.array([[0, 0, 0],
+                    [1, 0, 0],
+                    [0, 0, 0]])
+filter4 = np.array([[-1, 0, 1],
+                    [-1, 0, 1],
+                    [-1, 0, 1]])
 
 # (b): No code
 
@@ -41,7 +45,7 @@ plt.savefig("input.png")
 for fi, f in enumerate(filters):
     c = conv(data, f)
     sol = np.load("filtermon/output_%d.npy" % fi)
-
+    plt.imsave(f"./filtermon/output_{fi}.png", sol)
     matches = False
 
     if np.allclose(c, sol, rtol=1e-2, atol=1e-5):
