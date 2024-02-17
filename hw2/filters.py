@@ -4,6 +4,9 @@ import numpy as np
 
 from common import read_img, save_img
 
+import pdb
+import cv2
+
 
 def image_patches(image, patch_size=(16, 16)):
     """
@@ -17,6 +20,20 @@ def image_patches(image, patch_size=(16, 16)):
     """
     # TODO: Use slicing to complete the function
     output = []
+    H, W = image.shape
+    h, w = patch_size
+    num_h = H // h
+    num_w = W // w
+    
+    for i in range(num_h):
+        for j in range(num_w):
+            patch = image[i * h : (i + 1) * h, i * w : (i + 1) * w]
+            patch_mean = np.mean(patch)
+            patch_std = np.std(patch)
+            patch = (patch - patch_mean) / patch_std
+            patch = np.nan_to_num(patch, nan=0.0, posinf=0.0, neginf=0.0)
+            output.append(patch)  
+    # import pdb; pdb.set_trace()
     return output
 
 
@@ -30,7 +47,24 @@ def convolve(image, kernel):
            kernel: h x w
     Output- convolve: H x W
     """
-    output = None
+    output = np.zeros_like(image)
+    if len(kernel.shape) == 2:
+        kernel = kernel[ : :-1 , : :-1]
+    elif len(kernel.shape) == 1:
+        kernel = kernel[ : :-1]
+    
+    H, W = image.shape
+    h, w = kernel.shape
+    
+    padding = [h//2, w//2]
+    padded_image = np.zeros((H + 2 * padding[0], W + 2 * padding[1]), dtype=image.dtype)
+    padded_image[padding[0] : H + padding[0], padding[1] : W + padding[1]] = image
+    
+    for y in range(H):
+        for x in range(W):
+            patch = padded_image[y : y + h , x : x + w] 
+            output[y, x] = np.sum(patch * kernel)
+    
     return output
 
 
@@ -42,14 +76,14 @@ def edge_detection(image):
     Output- Ix, Iy, grad_magnitude: H x W
     """
     # TODO: Fix kx, ky
-    kx = None  # 1 x 3
-    ky = None  # 3 x 1
+    kx = np.array([-1, 0, 1]).reshape(1, 3)  # 1 x 3
+    ky = np.array([-1, 0, 1]).reshape(3, 1)  # 3 x 1
 
     Ix = convolve(image, kx)
     Iy = convolve(image, ky)
 
     # TODO: Use Ix, Iy to calculate grad_magnitude
-    grad_magnitude = None
+    grad_magnitude = np.sqrt(Ix ** 2 + Iy ** 2)
 
     return Ix, Iy, grad_magnitude
 
@@ -63,6 +97,17 @@ def sobel_operator(image):
     """
     # TODO: Use convolve() to complete the function
     Gx, Gy, grad_magnitude = None, None, None
+    S_x = np.array([[1, 0, -1],
+                    [2, 0, -2],
+                    [1, 0, -1],])
+    
+    S_y = np.array([[1, 2, 1],
+                    [0, 0, 0],
+                    [-1, -2, -1],])
+    
+    Gx = convolve(image, S_x)
+    Gy = convolve(image, S_y)
+    grad_magnitude = np.sqrt(Gx ** 2  + Gy ** 2)
 
     return Gx, Gy, grad_magnitude
 
@@ -77,7 +122,29 @@ def bilateral_filter(image, window_size, sigma_d, sigma_r):
     Output- output: filtered image
     """
     # TODO: complete the bilateral filtering, assuming spatial and range kernels are gaussian
-    output = None
+    H, W = image.shape
+    h, w = window_size
+    output = np.zeros_like(image, dtype=image.dtype)
+    
+    padding = [h//2, w//2]
+    padded_image = np.zeros((H + 2 * padding[0], W + 2 * padding[1]), dtype=image.dtype)
+    padded_image[padding[0] : H + padding[0], padding[1] : W + padding[1]] = image
+    
+    range_x = np.arange(-int(w / 2), int(w / 2) + 1)
+    range_y = np.arange(-int(h / 2), int(h / 2) + 1)
+    mesh_x, mesh_y = np.meshgrid(range_x, range_y)
+    dis_mat = mesh_x **2 + mesh_y **2
+    # pdb.set_trace()
+    
+    for y in range(H):
+        for x in range(W):
+            term1 = - dis_mat / (2 * sigma_d ** 2)
+            # pdb.set_trace()
+            image_in_kernel = padded_image[y : y + h, x : x + w] 
+            term2 = - ( np.linalg.norm((image[y, x] -  image_in_kernel), keepdims=True) ** 2 / (2 * sigma_r ** 2))
+            w_ij = np.exp(term1 + term2)
+            output[y, x] = (image_in_kernel * w_ij).sum() / w_ij.sum()
+            # pdb.set_trace()
 
     return output
 
@@ -95,7 +162,11 @@ def main():
     patches = image_patches(img)
     # Now choose any three patches and save them
     # chosen_patches should have those patches stacked vertically/horizontally
-    chosen_patches = None
+    idxs = [np.random.randint(0, len(patches)) for _ in range(3)]
+    # print(idxs)
+    chosen_patches = np.array([patches[i] for i in idxs])
+    chosen_patches = chosen_patches.reshape(16, -1)
+    # import pdb; pdb.set_trace()
     save_img(chosen_patches, "./image_patches/q1_patch.png")
 
     # (b), (c): No code
@@ -112,8 +183,15 @@ def main():
     # (c)
     # Calculate the Gaussian kernel described in the question.
     # There is tolerance for the kernel.
-    kernel_gaussian = None
-
+    kernel_size = 3
+    kernel_sigma = 0.572
+    # kernel_sigma = 2
+    kernel_range = np.arange(-int(kernel_size / 2), int(kernel_size / 2) + 1)
+    kernel_x, kernel_y = np.meshgrid(kernel_range, kernel_range)
+    kernel_gaussian = np.exp(- (kernel_x ** 2 + kernel_y ** 2) / (2 * kernel_sigma ** 2))
+    kernel_gaussian /= kernel_gaussian.sum()
+    # print(kernel_gaussian.sum())
+    # pdb.set_trace()
     filtered_gaussian = convolve(img, kernel_gaussian)
     save_img(filtered_gaussian, "./gaussian_filter/q2_gaussian.png")
 
@@ -136,7 +214,10 @@ def main():
         os.makedirs("./bilateral")
 
     image_bilataral_filtered = bilateral_filter(img, (5, 5), 3, 75)
+    img_cv2 = cv2.imread('./grace_hopper.png')
+    image_bilataral_filtered_cv2 = cv2.bilateralFilter(img_cv2, 5, 75, 3)
     save_img(image_bilataral_filtered, "./bilateral/bilateral_output.png")
+    save_img(image_bilataral_filtered_cv2, "./bilateral/bilateral_output_cv2.png")
 
     # -- TODO Task 3: Sobel Operator --
     if not os.path.exists("./sobel_operator"):
