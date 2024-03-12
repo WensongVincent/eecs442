@@ -43,6 +43,17 @@ def main(args):
     # TODO: Set hyperparameters for training your model. You can change any   #
     # of the hyperparameters above.                                           #
     ###########################################################################
+    # How much data to use for training
+    num_train = 20000
+
+    # Model architecture hyperparameters.
+    hidden_dim = 16
+
+    # Optimization hyperparameters.
+    batch_size = 128
+    num_epochs = 10
+    learning_rate = 1e-4
+    reg = 1.0
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
@@ -112,6 +123,16 @@ def training_step(model, X_batch, y_batch, reg):
     ###########################################################################
     # TODO: Compute the loss and gradient for one training iteration.         #
     ###########################################################################
+    params = model.parameters()
+    score, caches = model.forward(X_batch)
+    reg_loss_W1, reg_grad_W1 = l2_regularization(params["W1"], reg) 
+    reg_loss_W2, reg_grad_W2 = l2_regularization(params["W2"], reg)
+    loss, grad_score = softmax_loss(score, y_batch)
+    loss = loss + reg_loss_W1 + reg_loss_W2
+    
+    grads = model.backward(grad_score, caches)
+    grads["W1"] += reg_grad_W1 
+    grads["W2"] += reg_grad_W2
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################

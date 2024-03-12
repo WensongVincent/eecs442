@@ -31,6 +31,11 @@ def f1(x1, w1, x2, w2, b, y):
     # TODO: Implement the forward pass for the computational graph f1 shown   #
     # in the homework description. Store the loss in the variable L.          #
     ###########################################################################
+    a1 = x1 * w1
+    a2 = x2 * w2
+    y_bar = a1 + a2 + b
+    d = y_bar - y
+    L = d ** 2
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
@@ -43,6 +48,17 @@ def f1(x1, w1, x2, w2, b, y):
     # in the homework description. Store the gradients for each input         #
     # variable in the corresponding grad variagbles defined above.            #
     ###########################################################################
+    grad_L = 1
+    grad_d = grad_L * 2 * d
+    grad_y = grad_d * -1
+    grad_y_bar = grad_d
+    grad_b = grad_y_bar
+    grad_a2 = grad_y_bar
+    grad_a1 = grad_y_bar
+    grad_w2 = grad_a2 * x2
+    grad_x2 = grad_a2 * w2
+    grad_w1 = grad_a1 * x1
+    grad_x1 = grad_a1 * w1
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
@@ -75,6 +91,11 @@ def f2(x):
     # TODO: Implement the forward pass for the computational graph f2 shown   #
     # in the homework description. Store the output in the variable y.        #
     ###########################################################################
+    d = 2 * x
+    e = math.exp(d)
+    t = e - 1
+    b = e + 1
+    y = t / b
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
@@ -86,6 +107,12 @@ def f2(x):
     # in the homework description. Store the gradients for each input         #
     # variable in the corresponding grad variagbles defined above.            #
     ###########################################################################
+    grad_y = 1
+    grad_t = grad_y * (1 / b)
+    grad_b = grad_y * (- t / (b ** 2))
+    grad_e = grad_t + grad_b
+    grad_d = grad_e * math.exp(d)
+    grad_x = grad_d * 2
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
@@ -120,6 +147,16 @@ def f3(s1, s2, y):
     # TODO: Implement the forward pass for the computational graph f3 shown   #
     # in the homework description. Store the loss in the variable L.          #
     ###########################################################################
+    e1 = math.exp(s1)
+    e2 = math.exp(s2)
+    d = e1 + e2
+    p1 = e1 / d
+    p2 = e2 / d
+    if y == 1:
+        p_plus = p1
+    elif y ==2:
+        p_plus = p2
+    L = -math.log(p_plus)
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
@@ -134,6 +171,19 @@ def f3(s1, s2, y):
     #                                                                         #
     # HINT: You may need an if statement to backprop through the choose node  #
     ###########################################################################
+    grad_L = 1
+    grad_p_plus = grad_L * (- 1 / p_plus)
+    if y == 1:
+        grad_p1 = grad_p_plus
+        grad_p2 = 0
+    elif y == 2:
+        grad_p1 = 0
+        grad_p2 = grad_p_plus
+    grad_d = grad_p1 * (- e1 / d ** 2) + grad_p2 * (- e2 / d ** 2)
+    grad_e1 = grad_d + grad_p1 * (1 / d)
+    grad_e2 = grad_d + grad_p2 * (1 / d)
+    grad_s1 = grad_e1 * math.exp(s1)
+    grad_s2 = grad_e2 * math.exp(s2)
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
