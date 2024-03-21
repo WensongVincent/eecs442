@@ -45,15 +45,13 @@ def main(args):
     ###########################################################################
     # How much data to use for training
     num_train = 20000
-
     # Model architecture hyperparameters.
-    hidden_dim = 16
-
+    hidden_dim = 200
     # Optimization hyperparameters.
-    batch_size = 128
-    num_epochs = 10
-    learning_rate = 1e-4
-    reg = 1.0
+    batch_size = 32
+    num_epochs = 13
+    learning_rate = 3e-2
+    reg = 0.00
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################

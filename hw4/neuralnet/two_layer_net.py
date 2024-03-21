@@ -28,9 +28,9 @@ class TwoLayerNet(Classifier):
         # TODO: Initialize the weights and biases of a two-layer network.     #
         #######################################################################
         self.W1 = np.random.normal(0, weight_scale, size=(input_dim, hidden_dim))
-        self.b1 = np.zeros((hidden_dim, ))
+        self.b1 = np.zeros(hidden_dim)
         self.W2 = np.random.normal(0, weight_scale, size=(hidden_dim, num_classes))
-        self.b2 = np.zeros((num_classes,))
+        self.b2 = np.zeros(num_classes)
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
