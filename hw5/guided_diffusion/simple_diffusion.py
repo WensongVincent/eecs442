@@ -803,17 +803,30 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, beta_min=0.0
         ########## START TODO ##########
         # Implement the linear schedule
         # Uniformly divide the [beta_min, beta_max) to num_diffusion_timesteps values.
-
-        betas = None
+        betas = np.linspace(beta_min, beta_max, num_diffusion_timesteps)
+        
         ########## END TODO ##########
+        
     elif schedule_name == "cosine":
         ########## START TODO ##########
         # Implement the cosine schedule
         # Assume s = 0.008 and beta_clip=0.999
         s = 0.008
         beta_clip = 0.999
+        betas = np.zeros(num_diffusion_timesteps)
         
-        betas = None
+        f_0 = 0.0
+        alpha_bar_tminus1 = 0.0
+        for t in range(num_diffusion_timesteps):
+            if t == 0:
+                f_0 = (np.cos((t/num_diffusion_timesteps + s) / (1 + s) * np.pi / 2)) ** 2
+                alpha_bar_tminus1 = 1
+            else:
+                f_t = (np.cos((0/num_diffusion_timesteps + s) / (1 + s) * np.pi / 2)) ** 2
+                alpha_bar_t = f_t / f_0
+                betas[t] = 1 - alpha_bar_t / alpha_bar_tminus1
+                alpha_bar_tminus1 = alpha_bar_t
+        
         ########## End TODO ##########
     else:
         raise NotImplementedError(f"unknown beta schedule: {schedule_name}")
