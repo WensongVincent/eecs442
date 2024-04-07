@@ -227,10 +227,10 @@ class DDPMDiffusion:
         # Also we will need the cumulated product of alpha.
         # And during sampling we need the value of cumulated product of alpha from
         # previous or next timestep.
-        alphas = None
-        self.alphas_cumprod = None  # cumpulated product of alphas
-        self.alphas_cumprod_prev = None # first T-1 elements of alphas_cumprod, append 1.0 at the begining, to make its length T
-        self.alphas_cumprod_next = None # last T-1 elements of alphas_cumprod, append 0.0 at the end, to make its length T
+        alphas = 1 - betas
+        self.alphas_cumprod = np.cumprod(alphas)  # cumpulated product of alphas
+        self.alphas_cumprod_prev = np.array([1, self.alphas_cumprod[:-1]]) # first T-1 elements of alphas_cumprod, append 1.0 at the begining, to make its length T
+        self.alphas_cumprod_next = np.array([self.alphas_cumprod[1:], 0]) # last T-1 elements of alphas_cumprod, append 0.0 at the end, to make its length T
         
         ########### END TODO  ###########
         assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
@@ -796,11 +796,9 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, beta_min=0.0
         ########## START TODO ##########
         # Implement the linear schedule
         # Uniformly divide the [beta_min, beta_max) to num_diffusion_timesteps values.
-
         betas = np.linspace(beta_min, beta_max, num_diffusion_timesteps)
-        
         ########## END TODO ##########
-        
+    
         
     elif schedule_name == "cosine":
         ########## START TODO ##########
@@ -809,18 +807,23 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, beta_min=0.0
         s = 0.008
         beta_clip = 0.999
         
+        betas = np.zeros(num_diffusion_timesteps)
         f_0 = 0.0
-        alpha_bar_tminus1 = 0.0
+        alpha_bar_tminus1 = 1.0
         for t in range(num_diffusion_timesteps):
             if t == 0:
-                f_0 = (np.cos((t/num_diffusion_timesteps + s) / (1 + s) * np.pi / 2)) ** 2
-                alpha_bar_tminus1 = 1
-            else:
-                f_t = (np.cos((0/num_diffusion_timesteps + s) / (1 + s) * np.pi / 2)) ** 2
-                alpha_bar_t = f_t / f_0
-                betas[t] = 1 - alpha_bar_t / alpha_bar_tminus1
-                alpha_bar_tminus1 = alpha_bar_t
+                f_0 = (np.cos((0/num_diffusion_timesteps + s) / (1 + s) * np.pi / 2)) ** 2
+                # alpha_bar_tminus1 = 1
                 
+            else:
+                f_t = (np.cos((t/num_diffusion_timesteps + s) / (1 + s) * np.pi / 2)) ** 2
+                alpha_bar_t = f_t / f_0
+                # import pdb; pdb.set_trace()
+                betas[t-1] = np.clip((1 - alpha_bar_t / alpha_bar_tminus1), a_min=0, a_max=beta_clip)
+                alpha_bar_tminus1 = alpha_bar_t
+                # import pdb; pdb.set_trace()
+        betas[-1] = beta_clip 
+            
         ########## End TODO ##########
     else:
         raise NotImplementedError(f"unknown beta schedule: {schedule_name}")
