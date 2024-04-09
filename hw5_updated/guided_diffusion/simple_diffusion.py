@@ -227,10 +227,10 @@ class DDPMDiffusion:
         # Also we will need the cumulated product of alpha.
         # And during sampling we need the value of cumulated product of alpha from
         # previous or next timestep.
-        alphas = 1 - betas
-        self.alphas_cumprod = np.cumprod(alphas)  # cumpulated product of alphas
-        self.alphas_cumprod_prev = np.array([1, self.alphas_cumprod[:-1]]) # first T-1 elements of alphas_cumprod, append 1.0 at the begining, to make its length T
-        self.alphas_cumprod_next = np.array([self.alphas_cumprod[1:], 0]) # last T-1 elements of alphas_cumprod, append 0.0 at the end, to make its length T
+        self.alphas = 1 - betas
+        self.alphas_cumprod = np.cumprod(self.alphas)  # cumpulated product of alphas
+        self.alphas_cumprod_prev = np.concatenate((np.array([1]), self.alphas_cumprod[:-1])) # first T-1 elements of alphas_cumprod, append 1.0 at the begining, to make its length T
+        self.alphas_cumprod_next = np.concatenate((self.alphas_cumprod[1:], np.array([0]))) # last T-1 elements of alphas_cumprod, append 0.0 at the end, to make its length T
         
         ########### END TODO  ###########
         assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
@@ -277,7 +277,7 @@ class DDPMDiffusion:
         for idx in pbar:
             time = torch.tensor([idx] * img.shape[0], device=device)
             
-            img = None
+            img = self.p_sample(model=model, x=img, t=time)['x_t_minus_1']
             
             img = img.detach_()
            
@@ -312,8 +312,9 @@ class DDPMDiffusion:
         """
         #####Start TODO#####
         ##### Get the predicted score and variance of the pretrained model #####
-        pred_noise = None
-        var_values = None
+        model_output = model.forward(x, t)
+        pred_noise = model_output[:, :3, :, :]
+        var_values = model_output[:, 3:, :, :]
         ##### End TODO #####
 
         log_variance = self.var_processor.get_variance(var_values, t)   # get the log  of variance
@@ -321,7 +322,14 @@ class DDPMDiffusion:
         #####  Start TODO   #####
         ##### get predicted x_0 and x_t_minus_1  #####
         ##### don't forget to add noise for all the steps, except for the last one  #####
-        x_t_minus_1 = None
+        if t > 1:
+            z = torch.randn(x.shape, dtype=x.dtype, device=x.device)
+        else:
+            z = torch.zeros_like(x, device=x.device)
+        # import pdb; pdb.set_trace()
+        alpha = extract_and_expand(self.alphas, t, x)
+        alpha_bar = extract_and_expand(self.alphas_cumprod, t, x)
+        x_t_minus_1 = (1 / torch.sqrt(alpha)) * (x - ((1 - alpha) / torch.sqrt(1 - alpha_bar)) * pred_noise) + torch.sqrt(torch.exp(log_variance)) * z
         
         #####  End TODO   #####
         
@@ -367,16 +375,17 @@ class DDIMDiffusion(DDPMDiffusion):
         ##### You don't need to scale the timestep for further computations of x_t_minus_1.
         ##### NOTE: Since this version of the model learns the variance along with the score function,
         ##### the output of the model would have double the number of channels as that of the input.
-        ##### So assign the predicted score and variance values to the variables below.Refer to 
+        ##### So assign the predicted score and variance values to the variables below. Refer to 
         ##### torch.split method.
         ##############################################
         #####  Start TODO   #####
-        mode_output = None
-        pred_noise, var_values = None, None
+        model_output = model.forward(x, self._scale_timesteps(t))
+        # import pdb; pdb.set_trace()
+        pred_noise, var_values = torch.split(model_output, 3, dim=1)
         ##### End TODO #####
         
         model_mean, pred_xstart = self.mean_processor.get_mean_and_xstart(x, t, pred_noise)
-        log_variance = self.var_processor.get_variance(var_values, t)   # get the log  of variance
+        log_variance = self.var_processor.get_variance(var_values, t)   # get the log  of variance # This is not useful for DDIM, use equation provided
         
         #####   TODO    #####
         ##### Step 1: Implement the variance parameter 'sigma' for DDIM sampling.   #####
@@ -388,8 +397,19 @@ class DDIMDiffusion(DDPMDiffusion):
         ##### Assign them to the variables x_t_minus_1.                             #####
         
         #####  Start TODO   #####
-        sigma = None
-        x_t_minus_1 = None
+        if t > 1:
+            z = torch.randn(x.shape, device=x.device)
+        else:
+            z = torch.zeros_like(x)
+        
+        # alpha = extract_and_expand(self.alphas, t, x)
+        alpha_bar = extract_and_expand(self.alphas_cumprod, t, x)
+        alpha_bar_prev = extract_and_expand(self.alphas_cumprod_prev, t, x)
+        
+        eta = 1
+        sigma = eta * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * torch.sqrt(1 - (alpha_bar) / (alpha_bar_prev))        
+
+        x_t_minus_1 = torch.sqrt(alpha_bar_prev) * pred_xstart + torch.sqrt(1 - alpha_bar_prev - sigma ** 2) * pred_noise + sigma * z
         ##### End TODO #####
         
         return {"x_t_minus_1": x_t_minus_1, "pred_xstart": pred_xstart}
