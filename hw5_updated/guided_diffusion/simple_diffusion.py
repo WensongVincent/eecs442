@@ -488,7 +488,17 @@ class Repaint(DDIMDiffusion):
                     gt_keep_mask = conf.get_inpa_mask(x_t_minus_one_unknown)
 
                 gt = model_kwargs['gt']
-                x_t_minus_one = None
+                
+                # Get x_t_minus_one_known
+                if t > 1:
+                    epsilon = torch.randn(x_t_minus_one_unknown.shape, device=x_t_minus_one_unknown.device)
+                else:
+                    epsilon = torch.zeros_like(x_t_minus_one_unknown, device=x_t_minus_one_unknown.device)
+                alpha_bar = extract_and_expand(self.alphas_cumprod, t, x_t_minus_one_unknown)
+                x_t_minus_one_known = torch.sqrt(alpha_bar) * gt + torch.sqrt(1 - alpha_bar) * epsilon
+                
+                # Get x_t_minus_one
+                x_t_minus_one = gt_keep_mask * x_t_minus_one_known + (1 - gt_keep_mask) * x_t_minus_one_unknown
 
             
             else:
@@ -502,8 +512,8 @@ class Repaint(DDIMDiffusion):
         # So assign the predicted score and variance values to the variables below. Refer to 
         # torch.split method.
         
-        model_output = None
-        pred_score, var_values = None, None        
+        model_output = model.forward(x_t_minus_one, self._scale_timesteps(t))
+        pred_score, var_values = torch.split(model_output, 3, dim=1)
 
         model_mean, pred_xstart = self.mean_processor.get_mean_and_xstart(x_t_minus_one, t, pred_score)
         log_variance = self.var_processor.get_variance(var_values, t)   # get the log  of variance
@@ -516,7 +526,12 @@ class Repaint(DDIMDiffusion):
         ##### Assign the sample to the variable 'sample'                            #####
         ##############################################
         
-        sample = None
+        if t > 1:
+            z = torch.randn(x_t_minus_one_unknown.shape, device=x_t_minus_one_unknown.device)
+        else:
+            z = torch.zeros_like(x_t_minus_one_unknown, device=x_t_minus_one_unknown.device)
+        
+        sample = model_mean + torch.sqrt(torch.exp(log_variance)) * z
         
 
         
