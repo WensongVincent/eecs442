@@ -39,7 +39,7 @@ class PosteriorSampling(ConditioningMethod):
         
         Args:
             x_i: torch.Tensor, x_i
-            x_t, torch.Tensor, x_t_minus_1 prime
+            x_t_minus_one, torch.Tensor, x_t_minus_1 prime
             x_0_hat: torch.Tensor, predicted x_0
             measurement: torch.Tensor, y, the corrputed image
         """
@@ -57,8 +57,17 @@ class PosteriorSampling(ConditioningMethod):
         diff_output = None  # outputs of the differentiated function
         diff_input = None   # Inputs w.r.t. which the gradient will be returned
         
+        # My code
+        difference = measurement - A
+        norm = torch.norm(difference)
+        diff_output = norm
+        diff_input = x_i
+        
         ## TODO: Don't delete this line, you will use this
         norm_grad = torch.autograd.grad(outputs=diff_output, inputs=diff_input)[0]
+        
+        new_x_t_minus_one = x_t_minus_one - self.scale * norm_grad
+        
         
         ############    END TODO  ###########
         return new_x_t_minus_one

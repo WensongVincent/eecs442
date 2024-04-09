@@ -11,6 +11,7 @@ from .posterior_mean_variance import EpsilonXMeanProcessor, LearnedVarianceProce
                    
 __SAMPLER__ = {}
 
+# A decorator that Register sampler as {name: class_name} in global dict, so we can instantiate class just use global dict (Python class name is callable and able to pass in to function)
 def register_sampler(name: str):
     def wrapper(cls):
         if __SAMPLER__.get(name, None):
@@ -23,7 +24,7 @@ def register_sampler(name: str):
 def get_sampler(name: str):
     if __SAMPLER__.get(name, None) is None:
         raise NameError(f"Name {name} is not defined!")
-    return __SAMPLER__[name]
+    return __SAMPLER__[name] # use global dict to instantiate class
 
 
 def space_timesteps(num_timesteps, section_counts):
