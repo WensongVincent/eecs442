@@ -78,7 +78,7 @@ def find_fundamental_matrix(shape, pts1, pts2):
 
     # Denormalize the fundamental matrix
     F = T2.T @ F @ T1
-
+    print("F error: ", np.sum(F - FOpenCV))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -104,12 +104,11 @@ def compute_epipoles(F):
     ###########################################################################
     # Compute the right epipole (e2): null space of F
     U, S, Vt = np.linalg.svd(F)
-    e2 = Vt[-1]  # The last row of V^T, corresponding to the smallest singular value
+    e2 = Vt[-1] + 1e-10 # The last row of V^T, corresponding to the smallest singular value
 
     # Compute the left epipole (e1): null space of F^T
     U, S, Vt = np.linalg.svd(F.T)
-    e1 = U[:, -1]  # The last column of U, corresponding to the smallest singular value
-
+    e1 = U[:, -1] + 1e-10  # The last column of U, corresponding to the smallest singular value
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
