@@ -34,7 +34,50 @@ def find_fundamental_matrix(shape, pts1, pts2):
     ###########################################################################
     # TODO: Your code here                                                    #
     ###########################################################################
+    # Normalize the points to increase accuracy
+    pts1_hom = homogenize(pts1)
+    pts2_hom = homogenize(pts2)
 
+    # Center and scale points for numerical stability
+    mean1 = np.mean(pts1, axis=0)
+    mean2 = np.mean(pts2, axis=0)
+    std1 = np.std(pts1)
+    std2 = np.std(pts2)
+
+    # Transformation matrices for normalization
+    T1 = np.array([
+        [1/std1, 0, -mean1[0]/std1],
+        [0, 1/std1, -mean1[1]/std1],
+        [0, 0, 1]
+    ])
+    T2 = np.array([
+        [1/std2, 0, -mean2[0]/std2],
+        [0, 1/std2, -mean2[1]/std2],
+        [0, 0, 1]
+    ])
+
+    # Normalize points
+    pts1_norm = (T1 @ pts1_hom.T).T
+    pts2_norm = (T2 @ pts2_hom.T).T
+
+    # Create matrix A for the linear equation system Ax = 0
+    A = np.zeros((len(pts1), 9))
+    for i in range(len(pts1)):
+        x1, y1, _ = pts1_norm[i]
+        x2, y2, _ = pts2_norm[i]
+        A[i] = [x2*x1, x2*y1, x2, y2*x1, y2*y1, y2, x1, y1, 1]
+
+    # Solve the homogeneous equation system using SVD
+    U, S, Vt = np.linalg.svd(A)
+    F = Vt[-1].reshape(3, 3)
+
+    # Enforce the rank constraint (rank 2)
+    U, S, Vt = np.linalg.svd(F)
+    S[2] = 0  # Set smallest singular value to 0
+    F = U @ np.diag(S) @ Vt
+
+    # Denormalize the fundamental matrix
+    F = T2.T @ F @ T1
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -59,6 +102,13 @@ def compute_epipoles(F):
     ###########################################################################
     # TODO: Your code here                                                    #
     ###########################################################################
+    # Compute the right epipole (e2): null space of F
+    U, S, Vt = np.linalg.svd(F)
+    e2 = Vt[-1]  # The last row of V^T, corresponding to the smallest singular value
+
+    # Compute the left epipole (e1): null space of F^T
+    U, S, Vt = np.linalg.svd(F.T)
+    e1 = U[:, -1]  # The last column of U, corresponding to the smallest singular value
 
 
     ###########################################################################
